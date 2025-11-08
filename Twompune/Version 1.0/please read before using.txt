@@ -1,0 +1,2 @@
+Currently this script is in early beta. It has yet to support more than 2 bots or 3 when not logged in.
+Please wait for this to be fixed.

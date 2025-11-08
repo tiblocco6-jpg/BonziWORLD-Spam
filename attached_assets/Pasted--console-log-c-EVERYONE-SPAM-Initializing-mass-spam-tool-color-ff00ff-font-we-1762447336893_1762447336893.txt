@@ -1,0 +1,426 @@
+(() => {
+  console.log('%c[EVERYONE SPAM] Initializing mass spam tool...', 'color: #ff00ff; font-weight: bold;');
+  
+  // Create GUI
+  const html = `
+    <div id="everyoneSpamBox" style="position:fixed;top:50px;left:50px;width:400px;background:linear-gradient(135deg, #330033 0%, #000000 100%);border:3px solid #ff00ff;border-radius:12px;padding:18px;box-shadow:0 8px 32px rgba(255,0,255,0.5);font-family:'Segoe UI',Arial,sans-serif;z-index:99999;color:#ff00ff;">
+      <div id="dragHandleSpam" style="cursor:move;padding-bottom:12px;border-bottom:2px solid #ff00ff;">
+        <h2 style="margin:0;text-align:center;color:#ff00ff;text-shadow:0 0 10px #ff00ff;">👥 MAKE EVERYONE SPAM</h2>
+        <p style="margin:5px 0 0 0;text-align:center;font-size:11px;color:#ff66ff;">Mass Impersonation Tool</p>
+      </div>
+
+      <div style="margin-top:15px;">
+        <div style="background:rgba(255,0,255,0.1);padding:12px;border-radius:6px;border:1px solid #ff00ff;margin-bottom:12px;">
+          <div style="font-size:12px;margin-bottom:8px;color:#ff66ff;">STATUS:</div>
+          <div id="statusText" style="font-size:14px;font-weight:bold;color:#ff00ff;">⏳ Ready to deploy</div>
+        </div>
+
+        <div style="background:rgba(255,0,255,0.15);padding:12px;border-radius:6px;border:1px solid #ff00ff;margin-bottom:12px;">
+          <label style="display:block;margin-bottom:5px;color:#ff66ff;font-size:12px;">Spam Message:</label>
+          <input type="text" id="spamMessage" value="HACKED LOL" placeholder="Message to spam..." style="width:100%;padding:8px;background:#1a001a;color:#ff00ff;border:1px solid #ff00ff;border-radius:4px;margin-bottom:8px;">
+          
+          <label style="display:block;margin-bottom:5px;color:#ff66ff;font-size:12px;">Spam Speed (ms):</label>
+          <input type="range" id="spamSpeed" min="100" max="3000" value="800" style="width:100%;margin-bottom:5px;">
+          <div style="text-align:center;color:#ff66ff;font-size:11px;"><span id="speedValue">800</span>ms</div>
+        </div>
+
+        <button id="startEveryoneSpam" style="width:100%;padding:12px;background:#ff00ff;color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;margin-bottom:8px;">🚀 START MASS SPAM</button>
+        
+        <button id="stopEveryoneSpam" style="width:100%;padding:10px;background:#660066;color:#ff00ff;border:1px solid #ff00ff;border-radius:6px;cursor:pointer;font-size:12px;margin-bottom:12px;">⏹ STOP ALL BOTS</button>
+
+        <div style="background:rgba(255,255,0,0.1);padding:10px;border-radius:6px;border:1px solid #ffff00;">
+          <div style="font-size:11px;color:#ffff00;margin-bottom:8px;">📊 ACTIVE BOTS:</div>
+          <div id="botsList" style="font-size:10px;color:#ffcc00;line-height:1.6;max-height:120px;overflow-y:auto;">
+            No bots deployed yet
+          </div>
+        </div>
+
+        <div style="margin-top:12px;padding:8px;background:rgba(255,0,0,0.1);border-radius:6px;border:1px solid #ff0000;">
+          <small style="color:#ff6666;font-size:10px;">
+            Bots: <span id="botCount">0</span> | 
+            Messages: <span id="messageCount">0</span>
+          </small>
+        </div>
+
+        <button id="closeEveryoneSpam" style="width:100%;padding:8px;background:#330000;color:#ff6666;border:1px solid #ff0000;border-radius:6px;cursor:pointer;margin-top:10px;font-size:11px;">✖ CLOSE</button>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  const box = document.getElementById('everyoneSpamBox');
+  const dragHandle = document.getElementById('dragHandleSpam');
+  const statusText = document.getElementById('statusText');
+  const spamMessageInput = document.getElementById('spamMessage');
+  const spamSpeedInput = document.getElementById('spamSpeed');
+  const speedValue = document.getElementById('speedValue');
+  const startBtn = document.getElementById('startEveryoneSpam');
+  const stopBtn = document.getElementById('stopEveryoneSpam');
+  const closeBtn = document.getElementById('closeEveryoneSpam');
+  const botsList = document.getElementById('botsList');
+  const botCountSpan = document.getElementById('botCount');
+  const messageCountSpan = document.getElementById('messageCount');
+
+  // Make draggable
+  let isDragging = false;
+  let currentX, currentY, initialX, initialY;
+
+  dragHandle.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    initialX = e.clientX - box.offsetLeft;
+    initialY = e.clientY - box.offsetTop;
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      e.preventDefault();
+      currentX = e.clientX - initialX;
+      currentY = e.clientY - initialY;
+      box.style.left = currentX + 'px';
+      box.style.top = currentY + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+
+  // Update speed display
+  spamSpeedInput.addEventListener('input', (e) => {
+    speedValue.textContent = e.target.value;
+  });
+
+  // State
+  let activeBots = [];
+  let detectedUsers = [];
+  let totalMessages = 0;
+  let isRunning = false;
+
+  // Bypass methods
+  function applyBypass(text, count) {
+    const methods = [
+      () => text + '\u200B'.repeat(count % 5), // Zero-width
+      () => text + '\u2063'.repeat(count % 5), // Invisible separator
+      () => text + ' ' + Math.floor(Math.random() * 1000), // Random number
+      () => text + '-'.repeat(count % 8), // Legacy dashes
+    ];
+    return methods[count % methods.length]();
+  }
+
+  // Detect users in the room
+  function detectUsers() {
+    detectedUsers = [];
+    
+    // Method 1: Check bonzi object (if available)
+    if (typeof bonzi !== 'undefined' && bonzi) {
+      for (let guid in bonzi) {
+        if (bonzi[guid] && bonzi[guid].userPublic) {
+          const user = {
+            guid: guid,
+            name: bonzi[guid].userPublic.name || 'Anonymous',
+            color: bonzi[guid].userPublic.color || 'red',
+            hat: bonzi[guid].userPublic.hat || 'none'
+          };
+          detectedUsers.push(user);
+          console.log(`%c[EVERYONE SPAM] Detected user from bonzi object: ${user.name}`, 'color: #ff00ff');
+        }
+      }
+    }
+
+    // Method 2: Check usersPublic object (alternative structure)
+    if (typeof usersPublic !== 'undefined' && usersPublic) {
+      for (let guid in usersPublic) {
+        if (usersPublic[guid]) {
+          const user = {
+            guid: guid,
+            name: usersPublic[guid].name || 'Anonymous',
+            color: usersPublic[guid].color || 'red',
+            hat: usersPublic[guid].hat || 'none'
+          };
+          // Check if not already added
+          if (!detectedUsers.find(u => u.guid === guid)) {
+            detectedUsers.push(user);
+            console.log(`%c[EVERYONE SPAM] Detected user from usersPublic: ${user.name}`, 'color: #ff00ff');
+          }
+        }
+      }
+    }
+
+    // Method 3: Listen to socket for user data
+    if (typeof socket !== 'undefined' && socket && !window.everyoneSpamUserListener) {
+      window.everyoneSpamUserListener = true;
+      
+      // Listen for room data which contains all users
+      socket.on('room', (data) => {
+        console.log('%c[EVERYONE SPAM] Room data received:', 'color: #ff00ff', data);
+        
+        // Check if data has users
+        if (data && data.users) {
+          for (let guid in data.users) {
+            const userData = data.users[guid];
+            const exists = detectedUsers.find(u => u.guid === guid);
+            if (!exists && userData) {
+              const user = {
+                guid: guid,
+                name: userData.name || 'Anonymous',
+                color: userData.color || 'red',
+                hat: userData.hat || 'none'
+              };
+              detectedUsers.push(user);
+              console.log(`%c[EVERYONE SPAM] Detected user from room event: ${user.name}`, 'color: #ff00ff');
+            }
+          }
+        }
+      });
+      
+      // Listen for individual user updates
+      socket.on('update', (data) => {
+        if (data && data.guid) {
+          const exists = detectedUsers.find(u => u.guid === data.guid);
+          if (!exists) {
+            const user = {
+              guid: data.guid,
+              name: data.name || 'Anonymous',
+              color: data.color || 'red',
+              hat: data.hat || 'none'
+            };
+            detectedUsers.push(user);
+            console.log(`%c[EVERYONE SPAM] Detected user from update: ${user.name}`, 'color: #ff00ff');
+          }
+        }
+      });
+    }
+
+    console.log(`%c[EVERYONE SPAM] Total users detected: ${detectedUsers.length}`, 'color: #ff00ff');
+    return detectedUsers;
+  }
+
+  // Create impersonation bot
+  function createImpersonationBot(user) {
+    try {
+      // Connect to bonzi.gay server (or current server if already on bonzi.gay)
+      const serverUrl = window.location.hostname.includes('bonzi') ? window.location.origin : 'https://bonzi.gay/';
+      
+      const botSocket = io(serverUrl, {
+        forceNew: true,
+        reconnection: true,
+        reconnectionDelay: 1000 + Math.random() * 2000,
+        reconnectionAttempts: 10,
+        timeout: 20000,
+        transports: ['websocket', 'polling']
+      });
+
+      const bot = {
+        socket: botSocket,
+        user: user,
+        messageCount: 0,
+        interval: null,
+        connected: false
+      };
+
+      botSocket.on('connect', () => {
+        console.log(`%c[EVERYONE SPAM] Bot connected for ${user.name}`, 'color: #00ff00');
+        bot.connected = true;
+
+        // Login to default public room
+        botSocket.emit('client', 'MAIN');
+        
+        // Wait a moment before sending login to ensure client message is processed
+        setTimeout(() => {
+          botSocket.emit('login', {
+            passcode: '',
+            name: user.name,
+            room: 'default'  // Join default public room
+          });
+          
+          console.log(`%c[EVERYONE SPAM] Bot "${user.name}" joined default room`, 'color: #00ff00');
+        }, 100);
+
+        // Set appearance after joining room
+        setTimeout(() => {
+          botSocket.emit('command', { list: ['color', user.color] });
+          setTimeout(() => {
+            botSocket.emit('command', { list: ['hat', user.hat] });
+          }, 100);
+        }, 400);
+
+        // Start spamming after everything is set up
+        setTimeout(() => {
+          const speed = parseInt(spamSpeedInput.value);
+          bot.interval = setInterval(() => {
+            if (isRunning && bot.connected) {
+              const message = applyBypass(spamMessageInput.value, bot.messageCount);
+              botSocket.emit('talk', { text: message });
+              bot.messageCount++;
+              totalMessages++;
+              messageCountSpan.textContent = totalMessages;
+            }
+          }, speed);
+          
+          console.log(`%c[EVERYONE SPAM] Bot "${user.name}" started spamming at ${speed}ms interval`, 'color: #00ff00');
+        }, 800);
+
+        updateBotsList();
+      });
+
+      botSocket.on('disconnect', (reason) => {
+        bot.connected = false;
+        console.log(`%c[EVERYONE SPAM] Bot disconnected: ${user.name} (${reason})`, 'color: #ff0000');
+        
+        // Auto-reconnect if server disconnected us
+        if (isRunning && reason === 'io server disconnect') {
+          console.log(`%c[EVERYONE SPAM] Reconnecting bot: ${user.name}`, 'color: #ffff00');
+          setTimeout(() => botSocket.connect(), 2000 + Math.random() * 1000);
+        }
+      });
+
+      botSocket.on('error', (error) => {
+        console.error(`%c[EVERYONE SPAM] Bot error (${user.name}):`, 'color: #ff0000', error);
+        
+        if (error.includes && error.includes('too many connections')) {
+          console.log(`%c[EVERYONE SPAM] Rate limited, retrying...`, 'color: #ffff00');
+        }
+      });
+      
+      // Listen for successful room join
+      botSocket.on('room', (data) => {
+        console.log(`%c[EVERYONE SPAM] Bot "${user.name}" room data received`, 'color: #00ff00', data);
+      });
+
+      return bot;
+    } catch (error) {
+      console.error(`%c[EVERYONE SPAM] Failed to create bot:`, 'color: #ff0000', error);
+      return null;
+    }
+  }
+
+  // Update bots list display
+  function updateBotsList() {
+    const list = activeBots.map(bot => {
+      const status = bot.connected ? '🟢' : '🔴';
+      return `${status} ${bot.user.name} (${bot.user.color}/${bot.user.hat}) - ${bot.messageCount} msgs`;
+    }).join('<br>');
+    
+    botsList.innerHTML = list || 'No active bots';
+    botCountSpan.textContent = activeBots.length;
+  }
+
+  // Start mass spam
+  startBtn.addEventListener('click', () => {
+    if (isRunning) {
+      statusText.textContent = '⚠️ Already running!';
+      return;
+    }
+
+    console.log('%c[EVERYONE SPAM] Starting mass spam attack...', 'color: #ff00ff; font-weight: bold;');
+    statusText.textContent = '🔍 Detecting users...';
+
+    // Detect users
+    const users = detectUsers();
+    
+    if (users.length === 0) {
+      statusText.textContent = '❌ No users detected!';
+      alert('No users found! Make sure you are connected to a room with other users.');
+      return;
+    }
+
+    console.log(`%c[EVERYONE SPAM] Found ${users.length} users to impersonate`, 'color: #ff00ff');
+    statusText.textContent = `🚀 Spawning ${users.length} bots...`;
+
+    // Create bots for each user
+    isRunning = true;
+    let spawnCount = 0;
+
+    users.forEach((user, index) => {
+      setTimeout(() => {
+        const bot = createImpersonationBot(user);
+        if (bot) {
+          activeBots.push(bot);
+          spawnCount++;
+          statusText.textContent = `✅ ${spawnCount}/${users.length} bots active`;
+          updateBotsList();
+        }
+      }, index * 1200); // Stagger spawning
+    });
+
+    setTimeout(() => {
+      statusText.textContent = `✅ ${activeBots.length} bots spamming!`;
+      console.log('%c[EVERYONE SPAM] All bots deployed!', 'color: #00ff00; font-weight: bold;');
+    }, users.length * 1200 + 1000);
+
+    // Update interval
+    setInterval(() => {
+      if (isRunning) {
+        updateBotsList();
+      }
+    }, 2000);
+  });
+
+  // Stop all bots
+  stopBtn.addEventListener('click', () => {
+    console.log('%c[EVERYONE SPAM] Stopping all bots...', 'color: #ff0000; font-weight: bold;');
+    isRunning = false;
+
+    activeBots.forEach(bot => {
+      if (bot.interval) clearInterval(bot.interval);
+      if (bot.socket) {
+        bot.socket.disconnect();
+        bot.socket.close();
+      }
+    });
+
+    activeBots = [];
+    detectedUsers = [];
+    totalMessages = 0;
+    
+    statusText.textContent = '⏹ Stopped';
+    botsList.innerHTML = 'No bots deployed yet';
+    botCountSpan.textContent = '0';
+    messageCountSpan.textContent = '0';
+    
+    console.log('%c[EVERYONE SPAM] All bots stopped and disconnected', 'color: #ff0000');
+  });
+
+  // Close tool
+  closeBtn.addEventListener('click', () => {
+    if (isRunning) {
+      const confirm = window.confirm('Bots are still running! Stop them before closing?');
+      if (confirm) {
+        stopBtn.click();
+      }
+    }
+    box.remove();
+    console.log('%c[EVERYONE SPAM] Tool closed', 'color: #ff0000');
+  });
+
+  console.log('%c[EVERYONE SPAM] Tool initialized!', 'color: #ff00ff; font-weight: bold;');
+  console.log('%c[EVERYONE SPAM] Ready to impersonate all users in room', 'color: #ff00ff');
+
+  // Auto-detect users on start
+  setTimeout(() => {
+    detectUsers();
+    
+    // Update status periodically as users are detected
+    const updateStatus = setInterval(() => {
+      if (detectedUsers.length > 0) {
+        console.log(`%c[EVERYONE SPAM] Auto-detected ${detectedUsers.length} users`, 'color: #ff00ff');
+        statusText.textContent = `✓ Ready (${detectedUsers.length} users found)`;
+      } else {
+        statusText.textContent = '⏳ Waiting for users...';
+      }
+    }, 2000);
+    
+    // Stop updating after 30 seconds
+    setTimeout(() => clearInterval(updateStatus), 30000);
+  }, 1000);
+
+  // Also provide a debug helper
+  window.debugEveryoneSpam = () => {
+    console.log('%c=== EVERYONE SPAM DEBUG ===', 'color: #ff00ff; font-size: 16px; font-weight: bold;');
+    console.log('Detected users:', detectedUsers);
+    console.log('bonzi object:', typeof bonzi !== 'undefined' ? bonzi : 'not found');
+    console.log('usersPublic object:', typeof usersPublic !== 'undefined' ? usersPublic : 'not found');
+    console.log('socket object:', typeof socket !== 'undefined' ? socket : 'not found');
+  };
+})();

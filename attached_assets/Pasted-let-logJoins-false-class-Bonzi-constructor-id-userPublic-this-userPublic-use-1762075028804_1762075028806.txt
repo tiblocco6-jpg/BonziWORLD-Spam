@@ -1,0 +1,75 @@
+let logJoins = false;
+
+class Bonzi {
+    constructor(id, userPublic) {
+        this.userPublic = userPublic || {
+            name: "BonziBUDDY",
+            color: "purple",
+            speed: 175,
+            pitch: 50,
+            voice: "en-us",
+        };
+        this.color = this.userPublic.color;
+        this.data = window.BonziData;
+
+        this.eventList = [];
+        this.eventFrame = 0;
+        this.currentAnim = "idle";
+        this.animFrame = 0;
+        this.sprite = 0;
+
+        this.mute = false;
+        this.id = id || s4() + s4();
+
+        this.rng = new seedrandom(this.id || random());
+        this.abortController = new AbortController();
+
+        this.element = document.createElement("div");
+        this.element.classList.add("bonzi");
+        this.element.style.backgroundImage = this.toBgImg();
+        this.element.style.zIndex = lastZ++;
+        this.nametag = document.createElement("div");
+        this.nametag.classList.add("bonzi_name");
+        this.element.appendChild(this.nametag);
+        this.tag = document.createElement("div");
+        this.tag.classList.add("bonzi_tag");
+        this.element.appendChild(this.tag);
+        this.bubble = document.createElement("div");
+        this.bubble.classList.add("bubble");
+        this.bubble.hidden = true;
+        this.bubbleCont = document.createElement("div");
+        this.bubbleCont.classList.add("bubble_cont");
+        this.bubble.appendChild(this.bubbleCont);
+        this.element.appendChild(this.bubble);
+        content.appendChild(this.element);
+
+        this.updateName();
+        this.updateSprite();
+        this.updateTag();
+
+        this.element.onpointerdown = (e) => {
+            if (this.bubble.contains(e.target)) return;
+            if (e.which === 1) {
+                if (!gravity) dragged = this;
+                dragX = e.pageX - this.x;
+                dragY = e.pageY - this.y;
+                this.lastX = this.x;
+                this.lastY = this.y;
+                this.element.style.zIndex = lastZ++;
+            }
+            if (e.which === 2) {
+                this.cancel();
+                this.mute = !this.mute;
+                this.updateName();
+            }
+        };
+        this.element.addEventListener("contextmenu", (e) => {
+            if (this.bubble.contains(e.target)) e.stopPropagation();
+        });
+        this.element.onclick = (e) => {
+            if (this.bubble.contains(e.target)) return;
+            if (this.x === this.lastX && this.y === this.lastY) {
+                this.cancel();
+            }
+
+        };
